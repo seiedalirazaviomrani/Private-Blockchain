@@ -65,7 +65,7 @@ class Blockchain{
 		}).on('close', function(){
 			that.getBlockHeight()
 			.then(height =>{
-				if(height === 0){
+				if(height === -1){
 					that.addBlock(new Block("The first block in the chain -- Genesis block."));
 				}
 			});
@@ -77,10 +77,10 @@ class Blockchain{
         var that = this;
 		this.getBlockHeight()
 		.then(height => {
-			newBlock.height = height;
+			newBlock.height = (height+1);
 			// Previous block hash
-			if(height > 0){
-				getLevelDBData((height-1))
+			if(height > -1){
+				getLevelDBData(height)
 				.then(function(result){
 					newBlock.previousBlockHash = JSON.parse(result).hash;
 
@@ -115,7 +115,7 @@ class Blockchain{
 				console.log('Unable to read data stream!', err)
 			}).on('close', function(){
 				console.log('Block height is ' + (i-1));
-				resolve(i);
+				resolve(i-1);
 			});
 		});
 	}
@@ -127,7 +127,7 @@ class Blockchain{
 	}
 	// Validate block
 	validateBlock(blockHeight){
-		getLevelDBData(blockHeight)
+		return getLevelDBData(blockHeight)
 		.then((result) => {
 			// Convert string to the JSON object
 			let block = JSON.parse(result);
@@ -146,24 +146,33 @@ class Blockchain{
 	// Validate Blockchain
 	validateChain(){
 		let errorLog = [];
-		for (var i = 0; i < this.getBlockHeight(); i++) {
-			// Validate block
-			if(!this.validateBlock(i)) errorLog.push(i);
-			// Compare block hash links
-			getLevelDBData(i)
-			.then((result) => {
-				let block = JSON.parse(result);
-				let blockHash = block.hash;
-				getLevelDBData(i+1)
-				.then((nextResult) => {
-					let prevBlock = JSON.parse(nextResult);
-					let previousHash = prevBlock.previousBlockHash;
-				});
-			});
-			if (blockHash!==prevoiusHash){
-				errorLog.push(i);
-			}
-		}
+		var that = this;
+		var blockHash;
+		var previousHash;
+		that.getBlockHeight()
+		.then(height => {
+			(function theLoop (i) {
+				setTimeout(function () {
+					// Validate block
+					if(!that.validateBlock(i)) errorLog.push(i);
+					// Compare block hash links
+					getLevelDBData(i)
+					.then((result) => {
+						let block = JSON.parse(result);
+						blockHash = block.hash;
+						getLevelDBData(i+1)
+						.then((nextResult) => {
+							let prevBlock = JSON.parse(nextResult);
+							previousHash = prevBlock.previousBlockHash;
+						});
+					});
+					if (blockHash!==previousHash){
+						errorLog.push(i);
+					}
+    				if (--i) theLoop(i);
+  				}, 100);
+			})(height-1);
+		});
 		if (errorLog.length > 0){
 			console.log("Block errors = " + errorLog.length);
 			console.log("Blocks: " + errorLog);
