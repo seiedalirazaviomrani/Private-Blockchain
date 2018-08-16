@@ -56,7 +56,7 @@ function getLevelDBData(key){
 class Blockchain{
 	constructor(){
 		let block = new Block();
-		var that = this;
+		let that = this;
 		db.createReadStream().on('data', function(data){
 			block = JSON.parse(data.value);
 			console.log(data.key, block);
@@ -74,7 +74,7 @@ class Blockchain{
 	// Add new block
 	addBlock(newBlock){
 		// Block height
-        var that = this;
+        let that = this;
 		this.getBlockHeight()
 		.then(height => {
 			newBlock.height = (height+1);
@@ -146,9 +146,9 @@ class Blockchain{
 	// Validate Blockchain
 	validateChain(){
 		let errorLog = [];
-		var that = this;
-		var blockHash;
-		var previousHash;
+		let that = this;
+		let blockHash;
+		let previousHash;
 		that.getBlockHeight()
 		.then(height => {
 			(function theLoop (i) {
@@ -156,20 +156,22 @@ class Blockchain{
 					// Validate block
 					if(!that.validateBlock(i)) errorLog.push(i);
 					// Compare block hash links
-					getLevelDBData(i)
-					.then((result) => {
-						let block = JSON.parse(result);
-						blockHash = block.hash;
-						getLevelDBData(i+1)
-						.then((nextResult) => {
-							let prevBlock = JSON.parse(nextResult);
-							previousHash = prevBlock.previousBlockHash;
+					if (i > 0) {
+						getLevelDBData(i)
+						.then((result) => {
+							let block = JSON.parse(result);
+							blockHash = block.hash;
+							getLevelDBData(i+1)
+							.then((nextResult) => {
+								let prevBlock = JSON.parse(nextResult);
+								previousHash = prevBlock.previousBlockHash;
+							});
 						});
-					});
-					if (blockHash!==previousHash){
-						errorLog.push(i);
+						if (blockHash!==previousHash){
+							errorLog.push(i);
+						}
 					}
-    				if (--i) theLoop(i);
+    			if (--i) theLoop(i);
   				}, 100);
 			})(height-1);
 		});
