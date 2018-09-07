@@ -147,31 +147,20 @@ class Blockchain{
 	validateChain(){
 		let errorLog = [];
 		let that = this;
-		let blockHash;
-		let previousHash;
-		that.getBlockHeight()
-		.then(height => {
+		that.getBlockHeight() .then(height => {
 			(function theLoop (i) {
 				setTimeout(function () {
-					// Validate block
-					if(!that.validateBlock(i)) errorLog.push(i);
-					// Compare block hash links
-					if (i > 0) {
-						getLevelDBData(i)
-						.then((result) => {
-							let block = JSON.parse(result);
-							blockHash = block.hash;
-							getLevelDBData(i+1)
-							.then((nextResult) => {
-								let prevBlock = JSON.parse(nextResult);
-								previousHash = prevBlock.previousBlockHash;
-							});
+					if (!that.validateBlock(i)) errorLog.push(i);
+					if(i > 0){
+						getLevelDBData(i).then(result =>{
+							let blockHash = result.previousBlockHash;
+							let previousHash = result[i-1].hash;
+							if (blockHash !== previousHash){
+								errorLog.push(i);
+							}
 						});
-						if (blockHash!==previousHash){
-							errorLog.push(i);
-						}
 					}
-    			if (--i) theLoop(i);
+    			if (i<height) theLoop(i);
   				}, 100);
 			})(height-1);
 		});
